@@ -1,9 +1,30 @@
+import kuromoji from 'kuromoji';
+
 class WordMasker {
     constructor() {
         this.maskedWords = new Map();
         this.isActive = false;
         this.maskingPercentage = 0.1; // 10% of words will be masked
         this.minWordLength = 2; // Reduced for CJK characters
+        this.tokenizer = null;
+        this.initializeTokenizer();
+    }
+
+    async initializeTokenizer() {
+        try {
+            this.tokenizer = await new Promise((resolve, reject) => {
+                kuromoji.builder({ dicPath: chrome.runtime.getURL('dict/') }).build((err, tokenizer) => {
+                    if (err) {
+                        console.error('Failed to initialize tokenizer:', err);
+                        reject(err);
+                    } else {
+                        resolve(tokenizer);
+                    }
+                });
+            });
+        } catch (error) {
+            console.error('Tokenizer initialization failed:', error);
+        }
     }
 
     init() {
@@ -109,44 +130,102 @@ class WordMasker {
         return segments;
     }
 
+    isJapanese(text) {
+        // Check if text contains Japanese characters
+        return /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]/.test(text);
+    }
+
+    isChinese(text) {
+        // Check if text contains Chinese characters
+        return /[\u4E00-\u9FFF]/.test(text) && !this.isJapanese(text);
+    }
+
+    segmentJapanese(text) {
+        if (!this.tokenizer) return [text];
+        const tokens = this.tokenizer.tokenize(text);
+        return tokens.map(token => token.surface_form);
+    }
+
+    segmentChinese(text) {
+        // Simple Chinese word segmentation based on common patterns
+        // This is a basic implementation and might need improvement
+        const segments = [];
+        let currentSegment = '';
+
+        for (let i = 0; i < text.length; i++) {
+            const char = text[i];
+            const nextChar = text[i + 1];
+
+            // Add current character to segment
+            currentSegment += char;
+
+            // Check if we should split here
+            if (
+                // End of text
+                !nextChar ||
+                // Next character is punctuation
+                /[\u3000-\u303F\uFF00-\uFF0F\uFF1A-\uFF20\uFF3B-\uFF40\uFF5B-\uFF65]/.test(nextChar) ||
+                // Next character is not Chinese
+                !/[\u4E00-\u9FFF]/.test(nextChar) ||
+                // Current character is punctuation
+                /[\u3000-\u303F\uFF00-\uFF0F\uFF1A-\uFF20\uFF3B-\uFF40\uFF5B-\uFF65]/.test(char)
+            ) {
+                if (currentSegment) {
+                    segments.push(currentSegment);
+                    currentSegment = '';
+                }
+            }
+        }
+
+        if (currentSegment) {
+            segments.push(currentSegment);
+        }
+
+        return segments;
+    }
+
+    shouldMaskWord(word) {
+        // Don't mask punctuation or whitespace
+        if (/[\s\u3000-\u303F\uFF00-\uFF0F\uFF1A-\uFF20\uFF3B-\uFF40\uFF5B-\uFF65]/.test(word)) {
+            return false;
+        }
+
+        // For CJK words, only mask if it's a valid word
+        if (this.isJapanese(word) || this.isChinese(word)) {
+            return word.length >= this.minWordLength;
+        }
+
+        // For non-CJK words, only mask if it's a valid word
+        return word.length >= this.minWordLength && /^[\w\u00C0-\u00FF]+$/.test(word);
+    }
+
     maskWords() {
         const textNodes = this.getTextNodes();
         textNodes.forEach(node => {
-            const segments = this.splitText(node.textContent);
+            const text = node.textContent;
+            let segments = [];
+
+            if (this.isJapanese(text)) {
+                segments = this.segmentJapanese(text);
+            } else if (this.isChinese(text)) {
+                segments = this.segmentChinese(text);
+            } else {
+                segments = text.split(/(\s+)/);
+            }
+
             const maskedContent = segments.map(segment => {
-                // For CJK characters, mask individual characters
-                if (this.isCJKCharacter(segment[0])) {
-                    return segment.split('').map(char => {
-                        if (this.shouldMaskCharacter(char) && Math.random() < this.maskingPercentage) {
-                            const maskId = `mask-${Math.random().toString(36).substr(2, 9)}`;
-                            this.maskedWords.set(maskId, char);
-                            return `<span class="masked-word" data-mask-id="${maskId}">
-                                    <span class="mask">█</span>
-                                   </span>`;
-                            // <input type="text" class="guess-input" placeholder="猜">
-                        }
-                        return char;
-                    }).join('');
-                }
-                // For non-CJK text, use the original word-based masking
-                else {
-                    const words = segment.split(/(\s+)/);
-                    return words.map(word => {
-                        if (word.trim().length >= this.minWordLength &&
-                            Math.random() < this.maskingPercentage &&
-                            /^[\w\u00C0-\u00FF]+$/.test(word)) {
+                if (this.shouldMaskWord(segment) && Math.random() < this.maskingPercentage) {
+                    const maskId = `mask-${Math.random().toString(36).substr(2, 9)}`;
+                    this.maskedWords.set(maskId, segment);
 
-                            const maskId = `mask-${Math.random().toString(36).substr(2, 9)}`;
-                            this.maskedWords.set(maskId, word);
+                    const maskLength = segment.length;
+                    const maskChar = '█'.repeat(maskLength);
 
-                            return `<span class="masked-word" data-mask-id="${maskId}">
-                                    <span class="mask">█████</span>
-                                   </span>`;
-                            // <input type="text" class="guess-input" placeholder="Guess">
-                        }
-                        return word;
-                    }).join('');
+                    return `<span class="masked-word" data-mask-id="${maskId}">
+                            <span class="mask">${maskChar}</span>
+                           </span>`;
                 }
+                return segment;
             }).join('');
 
             const span = document.createElement('span');
