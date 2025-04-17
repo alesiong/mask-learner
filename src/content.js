@@ -4,10 +4,18 @@ class WordMasker {
     constructor() {
         this.maskedWords = new Map();
         this.isActive = false;
-        this.maskingPercentage = 0.1; // 10% of words will be masked
+        this.maskingPercentage = 0.1; // Default value
         this.minWordLength = 2; // Reduced for CJK characters
         this.tokenizer = null;
         this.initializeTokenizer();
+        this.loadMaskingPercentage();
+    }
+
+    async loadMaskingPercentage() {
+        const result = await chrome.storage.local.get(['maskingPercentage']);
+        if (result.maskingPercentage) {
+            this.maskingPercentage = result.maskingPercentage / 100;
+        }
     }
 
     async initializeTokenizer() {
@@ -32,6 +40,13 @@ class WordMasker {
             if (request.action === 'toggle') {
                 this.toggleMasking();
                 sendResponse({ status: 'success', isActive: this.isActive });
+            } else if (request.action === 'updatePercentage') {
+                this.maskingPercentage = request.percentage;
+                if (this.isActive) {
+                    this.revealAllWords();
+                    this.maskWords();
+                }
+                sendResponse({ status: 'success' });
             }
         });
     }
