@@ -346,6 +346,19 @@ class WordMasker {
             }
         });
 
+        // Handle click on masked word to reveal it
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('mask')) {
+                const maskContainer = e.target.closest('.masked-word');
+                const maskId = maskContainer.dataset.maskId;
+                const originalWord = this.maskedWords.get(maskId);
+                if (originalWord) {
+                    e.target.textContent = originalWord;
+                }
+            }
+        });
+
+        // Handle assessment button clicks
         document.addEventListener('click', (e) => {
             if (e.target.classList.contains('assessment-btn')) {
                 const maskContainer = e.target.closest('.masked-word');
@@ -377,7 +390,12 @@ class WordMasker {
         maskedElements.forEach(element => {
             const maskId = element.dataset.maskId;
             const originalWord = this.maskedWords.get(maskId);
-            element.outerHTML = originalWord;
+            if (originalWord) {
+                // Create a text node with the original word
+                const textNode = document.createTextNode(originalWord);
+                // Replace the masked element with the text node
+                element.parentNode.replaceChild(textNode, element);
+            }
         });
         this.maskedWords.clear();
         this.wordStats = {
