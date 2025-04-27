@@ -1,28 +1,69 @@
 .masked-word {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    background-color: #f5f5f5;
-    padding: 2px 5px;
-    border-radius: 4px;
-    margin: 0 2px;
-    vertical-align: middle;
+    position: relative;
+    display: inline-block;
 }
 
 .mask {
-    font-family: monospace;
-    color: #666;
     cursor: pointer;
-    min-width: 1em;
-    text-align: center;
+    background-color: #f0f0f0;
     padding: 2px 4px;
     border-radius: 3px;
-    background-color: #e0e0e0;
+}
+
+.assessment-popup {
+    display: none;
+    position: absolute;
+    top: -30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: white;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 5px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    z-index: 1000;
+}
+
+.assessment-btn {
+    border: none;
+    background: none;
+    cursor: pointer;
+    padding: 2px 5px;
+    margin: 0 2px;
+    font-size: 14px;
+    border-radius: 3px;
     transition: background-color 0.2s;
 }
 
-.mask:hover {
-    background-color: #d0d0d0;
+.assessment-btn:hover {
+    background-color: #f0f0f0;
+}
+
+.assessment-btn.correct {
+    color: #4CAF50;
+}
+
+.assessment-btn.wrong {
+    color: #f44336;
+}
+
+.assessment-btn.unsure {
+    color: #FFC107;
+}
+
+.correct-guess {
+    background-color: #4CAF50;
+    color: white;
+}
+
+.wrong-guess {
+    background-color: #f44336;
+    color: white;
+}
+
+.unsure-guess {
+    background-color: #FFC107;
+    color: black;
 }
 
 .guess-input {
@@ -37,11 +78,6 @@
 /* Adjust input width for CJK characters */
 .guess-input[placeholder="猜"] {
     width: 40px;
-}
-
-.correct-guess {
-    background-color: #e8f5e9;
-    border: 1px solid #4CAF50;
 }
 
 .incorrect-guess {

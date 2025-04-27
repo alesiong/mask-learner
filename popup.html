@@ -92,6 +92,45 @@
             font-size: 14px;
             color: #666;
         }
+
+        .stats-container {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f5f5f5;
+            border-radius: 4px;
+            text-align: left;
+        }
+
+        .stats-title {
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .stats-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            font-size: 13px;
+            color: #666;
+        }
+
+        .stats-value {
+            font-weight: bold;
+        }
+
+        .stats-correct {
+            color: #4CAF50;
+        }
+
+        .stats-wrong {
+            color: #f44336;
+        }
+
+        .stats-unsure {
+            color: #FFC107;
+        }
     </style>
 </head>
 <body>
@@ -103,6 +142,26 @@
         </div>
         <button id="toggleButton" class="toggle-button">Start Masking</button>
         <div class="status" id="status">Click to start masking words</div>
+
+        <div class="stats-container">
+            <div class="stats-title">Statistics</div>
+            <div class="stats-item">
+                <span>Total Masked Words:</span>
+                <span class="stats-value" id="totalWords">0</span>
+            </div>
+            <div class="stats-item">
+                <span class="stats-correct">Correct:</span>
+                <span class="stats-value stats-correct" id="correctWords">0</span>
+            </div>
+            <div class="stats-item">
+                <span class="stats-wrong">Wrong:</span>
+                <span class="stats-value stats-wrong" id="wrongWords">0</span>
+            </div>
+            <div class="stats-item">
+                <span class="stats-unsure">Not Sure:</span>
+                <span class="stats-value stats-unsure" id="unsureWords">0</span>
+            </div>
+        </div>
     </div>
     <script src="popup.js"></script>
 </body>

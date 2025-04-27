@@ -7,8 +7,15 @@ class WordMasker {
         this.maskingPercentage = 0.1; // Default value
         this.minWordLength = 2; // Reduced for CJK characters
         this.tokenizer = null;
+        this.wordStats = {
+            total: 0,
+            correct: 0,
+            wrong: 0,
+            unsure: 0
+        };
         this.initializeTokenizer();
         this.loadMaskingPercentage();
+        this.loadStats();
     }
 
     async loadMaskingPercentage() {
@@ -33,6 +40,26 @@ class WordMasker {
         } catch (error) {
             console.error('Tokenizer initialization failed:', error);
         }
+    }
+
+    async loadStats() {
+        const result = await chrome.storage.local.get(['wordStats']);
+        if (result.wordStats) {
+            this.wordStats = result.wordStats;
+            this.updateStats();
+        }
+    }
+
+    saveStats() {
+        chrome.storage.local.set({ wordStats: this.wordStats });
+        this.updateStats();
+    }
+
+    updateStats() {
+        chrome.runtime.sendMessage({
+            action: 'updateStats',
+            stats: this.wordStats
+        });
     }
 
     init() {
@@ -232,12 +259,19 @@ class WordMasker {
                 if (this.shouldMaskWord(segment) && Math.random() < this.maskingPercentage) {
                     const maskId = `mask-${Math.random().toString(36).substr(2, 9)}`;
                     this.maskedWords.set(maskId, segment);
+                    this.wordStats.total++;
+                    this.saveStats();
 
                     const maskLength = segment.length;
                     const maskChar = '█'.repeat(maskLength);
 
                     return `<span class="masked-word" data-mask-id="${maskId}">
                             <span class="mask">${maskChar}</span>
+                            <div class="assessment-popup">
+                                <button class="assessment-btn correct">✓</button>
+                                <button class="assessment-btn wrong">✗</button>
+                                <button class="assessment-btn unsure">?</button>
+                            </div>
                            </span>`;
                 }
                 return segment;
@@ -252,31 +286,42 @@ class WordMasker {
     }
 
     attachEventListeners() {
-        document.addEventListener('click', (e) => {
+        document.addEventListener('mouseover', (e) => {
             if (e.target.classList.contains('mask')) {
-                const maskContainer = e.target.closest('.masked-word');
-                const maskId = maskContainer.dataset.maskId;
-                const originalWord = this.maskedWords.get(maskId);
-                e.target.textContent = originalWord;
+                const popup = e.target.parentElement.querySelector('.assessment-popup');
+                if (popup) {
+                    popup.style.display = 'flex';
+                }
             }
         });
 
-        document.addEventListener('keypress', (e) => {
-            if (e.target.classList.contains('guess-input') && e.key === 'Enter') {
+        document.addEventListener('mouseout', (e) => {
+            if (e.target.classList.contains('mask')) {
+                const popup = e.target.parentElement.querySelector('.assessment-popup');
+                if (popup) {
+                    popup.style.display = 'none';
+                }
+            }
+        });
+
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('assessment-btn')) {
                 const maskContainer = e.target.closest('.masked-word');
                 const maskId = maskContainer.dataset.maskId;
-                const originalWord = this.maskedWords.get(maskId);
-                const guess = e.target.value.trim();
 
-                if (guess === originalWord) {
+                if (e.target.classList.contains('correct')) {
                     maskContainer.classList.add('correct-guess');
-                    maskContainer.querySelector('.mask').textContent = originalWord;
-                } else {
-                    maskContainer.classList.add('incorrect-guess');
-                    setTimeout(() => {
-                        maskContainer.classList.remove('incorrect-guess');
-                    }, 1000);
+                    this.wordStats.correct++;
+                } else if (e.target.classList.contains('wrong')) {
+                    maskContainer.classList.add('wrong-guess');
+                    this.wordStats.wrong++;
+                } else if (e.target.classList.contains('unsure')) {
+                    maskContainer.classList.add('unsure-guess');
+                    this.wordStats.unsure++;
                 }
+
+                this.saveStats();
+                e.target.closest('.assessment-popup').style.display = 'none';
             }
         });
     }
@@ -289,6 +334,13 @@ class WordMasker {
             element.outerHTML = originalWord;
         });
         this.maskedWords.clear();
+        this.wordStats = {
+            total: 0,
+            correct: 0,
+            wrong: 0,
+            unsure: 0
+        };
+        this.saveStats();
     }
 }
 
