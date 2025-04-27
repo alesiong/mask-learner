@@ -286,11 +286,27 @@ class WordMasker {
     }
 
     attachEventListeners() {
+        let currentPopup = null;
+        let hideTimeout = null;
+
         document.addEventListener('mouseover', (e) => {
             if (e.target.classList.contains('mask')) {
+                // Clear any pending hide timeout
+                if (hideTimeout) {
+                    clearTimeout(hideTimeout);
+                    hideTimeout = null;
+                }
+
+                // Hide previous popup if any
+                if (currentPopup && currentPopup !== e.target.parentElement.querySelector('.assessment-popup')) {
+                    currentPopup.style.display = 'none';
+                }
+
+                // Show new popup
                 const popup = e.target.parentElement.querySelector('.assessment-popup');
                 if (popup) {
                     popup.style.display = 'flex';
+                    currentPopup = popup;
                 }
             }
         });
@@ -299,7 +315,33 @@ class WordMasker {
             if (e.target.classList.contains('mask')) {
                 const popup = e.target.parentElement.querySelector('.assessment-popup');
                 if (popup) {
-                    popup.style.display = 'none';
+                    // Set a timeout to hide the popup
+                    hideTimeout = setTimeout(() => {
+                        popup.style.display = 'none';
+                        currentPopup = null;
+                    }, 300); // Small delay to allow moving to popup
+                }
+            }
+        });
+
+        // Prevent popup from hiding when hovering over it
+        document.addEventListener('mouseover', (e) => {
+            if (e.target.closest('.assessment-popup')) {
+                if (hideTimeout) {
+                    clearTimeout(hideTimeout);
+                    hideTimeout = null;
+                }
+            }
+        });
+
+        document.addEventListener('mouseout', (e) => {
+            if (e.target.closest('.assessment-popup')) {
+                const popup = e.target.closest('.assessment-popup');
+                if (popup) {
+                    hideTimeout = setTimeout(() => {
+                        popup.style.display = 'none';
+                        currentPopup = null;
+                    }, 300);
                 }
             }
         });
@@ -321,7 +363,11 @@ class WordMasker {
                 }
 
                 this.saveStats();
-                e.target.closest('.assessment-popup').style.display = 'none';
+                const popup = e.target.closest('.assessment-popup');
+                if (popup) {
+                    popup.style.display = 'none';
+                    currentPopup = null;
+                }
             }
         });
     }
